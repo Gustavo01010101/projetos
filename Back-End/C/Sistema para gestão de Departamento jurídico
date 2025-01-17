@@ -1,0 +1,752 @@
+//Recomendo usar o visual code studio pois no devc++ o acento não funciona
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <locale.h>
+
+#define MAX_CLIENTES 1000
+#define MAX_ESTAGIARIOS 100
+#define MAX_ADVOGADOS 50
+#define MAX_CASOS 500
+#define MAX_AGENDA 1000
+#define MAX_TELEFONE 1000
+#define MAX_STRING 1000
+#define MAX_CPF 10
+
+typedef struct {
+    int codigoAtendimento;
+    char cpf[12];
+    char nome[100];
+    char genero[20];
+    int lgbtqia;
+    char corRaca[20];
+    char dataNascimento[11];
+    char nacionalidade[50];
+    char naturalidade[50];
+    char rg[20];
+    char endereco[200];
+    char celular[15];
+    int usaWhatsApp;
+    char telefoneAlternativo[15];
+    char email[100];
+    char escolaridade[50];
+    char profissao[50];
+    char situacaoEmprego[20];
+    char estadoCivil[20];
+    int temFilhos;
+    int filhosMorando;
+    int totalMembros;
+    int recebeBeneficio;
+    float valorBeneficio;
+    float rendaMensal;
+    float rendaFamiliar;
+    int gastosTratamento;
+    float valorGastosTratamento;
+    int possuiInvestimentos;
+    float valorInvestimentos;
+    int possuiCasaPropria;
+    float valorCasaPropria;
+    int possuiApartamento;
+    float valorApartamento;
+    int possuiTerreno;
+    float valorTerreno;
+    int possuiImovelComercial;
+    float valorImovelComercial;
+    int possuiAutomovel;
+    float valorAutomovel;
+    int envolveViolenciaDomestica;
+    char resumoCaso[500];
+    char materiaRelacionada[50];
+    int enquadradoLei1060;
+} Cliente;
+
+typedef struct {
+    int codigo;
+    char nome[100];
+    char celular[15];
+    char email[100];
+    char tipo;
+} Estagiario;
+
+typedef struct {
+    char oab[10];
+    char nome[100];
+    char especialidade[50];
+    char cpf[12];
+    char email[100];
+    char celular[15];
+    int anoIngresso;
+} Advogado;
+
+typedef struct {
+    char cpf[12];
+    int codigoAtendimento;
+    int codigoEstagiario;
+    char dataAtribuicao[11];
+    char horaAtribuicao[6];
+} CasoAtribuido;
+
+typedef struct {
+    int codigoEstagiario;
+    char oab[10];
+    char dataAgendamento[11];
+    char horaAgendamento[6];
+    char dataInscricao[11];
+    char horaInscricao[6];
+    char areaDireito[50];
+    char tipoOrientacao[50];
+    int prazoFatal;
+    char observacoes[200];
+    char numeroProcesso[20];
+    char foiAtendido[20];
+} Agenda;
+
+typedef struct {
+    char numeroProcesso[20];
+    char tema[100];
+    char cpf[12];
+    char polo[20];
+    int codigoEstagiario;
+    char dataControle[11];
+    char proximaTarefa[50];
+    int temPrazoDobro;
+    char observacaoPrazo[200];
+    char audiencia[200];
+    char prazoSimples[11];
+    char prazoDobrado[11];
+    char movimentacao[500];
+    int diasProximoControle;
+    char dataProposicao[11];
+} Controle;
+
+Cliente clientes[MAX_CLIENTES];
+int numClientes = 0;
+Estagiario estagiarios[MAX_ESTAGIARIOS];
+int numEstagiarios = 0;
+Advogado advogados[MAX_ADVOGADOS];
+int numAdvogados = 0;
+CasoAtribuido casos[MAX_CASOS];
+int numCasos = 0;
+Agenda agendamentos[MAX_AGENDA];
+int numAgendamentos = 0;
+Controle controles[MAX_CASOS];
+int numControles = 0;
+
+
+void finalizarAtendimento() {
+    Controle controle;
+    FILE *arquivoControle;
+    char numeroProcesso[20];
+    char motivo[MAX_STRING];
+
+    printf("Digite o número do processo a ser finalizado: ");
+    lerString(numeroProcesso, sizeof(numeroProcesso));
+
+    printf("Motivo da finalização (Objetivo atingido/Renúncia): ");
+    lerString(motivo, sizeof(motivo));
+
+    arquivoControle = fopen("CONTROLE.DAT", "r+b");
+    if (arquivoControle == NULL) {
+        printf("Erro ao abrir o arquivo CONTROLE.DAT\n");
+        return;
+    }
+
+    int encontrado = 0;
+    while (fread(&controle, sizeof(Controle), 1, arquivoControle)) {
+        if (strcmp(controle.numeroProcesso, numeroProcesso) == 0) {
+            encontrado = 1;
+
+            if (strcmp(motivo, "Objetivo atingido") == 0) {
+                strcpy(controle.proximaTarefa, "Encerrar atendimento");
+            } else if (strcmp(motivo, "Renúncia") == 0) {
+                strcpy(controle.proximaTarefa, "Renúncia");
+            }
+
+            strcat(controle.movimentacao, "\nAtendimento finalizado. Motivo: ");
+            strcat(controle.movimentacao, motivo);
+
+            fseek(arquivoControle, -sizeof(Controle), SEEK_CUR);
+            fwrite(&controle, sizeof(Controle), 1, arquivoControle);
+            break;
+        }
+    }
+
+    fclose(arquivoControle);
+
+    if (encontrado) {
+        printf("Atendimento finalizado com sucesso.\n");
+    } else {
+        printf("Número do processo não encontrado.\n");
+    }
+}
+
+void lerString(char *str, int tamanho);
+void limparBuffer();
+
+void lerString(char *str, int tamanho) {
+    fgets(str, tamanho, stdin);
+    str[strcspn(str, "\n")] = 0;
+}
+
+void limparBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+void salvarClientes() {
+    FILE *file = fopen("CLIENTES.DAT", "wb");
+    if (file == NULL) {
+        printf("Erro ao abrir arquivo CLIENTES.DAT\n");
+        return;
+    }
+    fwrite(clientes, sizeof(Cliente), numClientes, file);
+    fclose(file);
+}
+
+void carregarClientes() {
+    FILE *file = fopen("CLIENTES.DAT", "rb");
+    if (file == NULL) {
+        printf("Arquivo CLIENTES.DAT não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    numClientes = fread(clientes, sizeof(Cliente), MAX_CLIENTES, file);
+    fclose(file);
+}
+
+void salvarEstagiarios() {
+    FILE *file = fopen("ESTAG.DAT", "wb");
+    if (file == NULL) {
+        printf("Erro ao abrir arquivo ESTAG.DAT\n");
+        return;
+    }
+    fwrite(estagiarios, sizeof(Estagiario), numEstagiarios, file);
+    fclose(file);
+}
+
+void carregarEstagiarios() {
+    FILE *file = fopen("ESTAG.DAT", "rb");
+    if (file == NULL) {
+        printf("Arquivo ESTAG.DAT não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    numEstagiarios = fread(estagiarios, sizeof(Estagiario), MAX_ESTAGIARIOS, file);
+    fclose(file);
+}
+
+void salvarAdvogados() {
+    FILE *file = fopen("ADVOG.DAT", "wb");
+    if (file == NULL) {
+        printf("Erro ao abrir arquivo ADVOG.DAT\n");
+        return;
+    }
+    fwrite(advogados, sizeof(Advogado), numAdvogados, file);
+    fclose(file);
+}
+
+void carregarAdvogados() {
+    FILE *file = fopen("ADVOG.DAT", "rb");
+    if (file == NULL) {
+        printf("Arquivo ADVOG.DAT não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    numAdvogados = fread(advogados, sizeof(Advogado), MAX_ADVOGADOS, file);
+    fclose(file);
+}
+
+void salvarCasos() {
+    FILE *file = fopen("CASOSATRIBUIDOS.DAT", "wb");
+    if (file == NULL) {
+        printf("Erro ao abrir arquivo CASOSATRIBUIDOS.DAT\n");
+        return;
+    }
+    fwrite(casos, sizeof(CasoAtribuido), numCasos, file);
+    fclose(file);
+}
+
+void carregarCasos() {
+    FILE *file = fopen("CASOSATRIBUIDOS.DAT", "rb");
+    if (file == NULL) {
+        printf("Arquivo CASOSATRIBUIDOS.DAT não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    numCasos = fread(casos, sizeof(CasoAtribuido), MAX_CASOS, file);
+    fclose(file);
+}
+
+void salvarAgenda() {
+    FILE *file = fopen("AGENDA.DAT", "wb");
+    if (file == NULL) {
+        printf("Erro ao abrir arquivo AGENDA.DAT\n");
+        return;
+    }
+    fwrite(agendamentos, sizeof(Agenda), numAgendamentos, file);
+    fclose(file);
+}
+
+void carregarAgenda() {
+    FILE *file = fopen("AGENDA.DAT", "rb");
+    if (file == NULL) {
+        printf("Arquivo AGENDA.DAT não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    numAgendamentos = fread(agendamentos, sizeof(Agenda), MAX_AGENDA, file);
+    fclose(file);
+}
+
+void salvarControle() {
+    FILE *file = fopen("CONTROLE.DAT", "wb");
+    if (file == NULL) {
+        printf("Erro ao abrir arquivo CONTROLE.DAT\n");
+        return;
+    }
+    fwrite(controles, sizeof(Controle), numControles, file);
+    fclose(file);
+}
+
+void carregarControle() {
+    FILE *file = fopen("CONTROLE.DAT", "rb");
+    if (file == NULL) {
+        printf("Arquivo CONTROLE.DAT não encontrado. Iniciando com lista vazia.\n");
+        return;
+    }
+    numControles = fread(controles, sizeof(Controle), MAX_CASOS, file);
+    fclose(file);
+}
+
+
+int compararClientes(const void *a, const void *b) {
+    return strcmp(((Cliente *)a)->cpf, ((Cliente *)b)->cpf);
+
+}
+
+
+int compararEstagiarios(const void *a, const void *b) {
+    return (((Estagiario*)a)->codigo - ((Estagiario*)b)->codigo);
+}
+
+
+int buscarClientePorCPF(const char *cpf) {
+    Cliente chave;
+    strcpy(chave.cpf, cpf);
+
+    Cliente *resultado = (Cliente *)bsearch(&chave, clientes, numClientes, sizeof(Cliente), compararClientes);
+    
+    if (resultado != NULL) {
+        return resultado - clientes;
+    } else {
+        return -1;
+    }
+}
+
+
+void realizarTriagem() {
+    if (numClientes >= MAX_CLIENTES) {
+        printf("Limite de clientes atingido.\n");
+        return;
+    }
+
+    Cliente novoCliente;
+    novoCliente.codigoAtendimento = numClientes + 1;
+
+    printf("CPF: ");
+    scanf("%s", novoCliente.cpf);
+    limparBuffer(); 
+    printf("Nome: ");
+    scanf(" %[^\n]", novoCliente.nome);
+    printf("Gênero: ");
+    scanf(" %[^\n]", novoCliente.genero);
+    printf("Faz parte da comunidade lgbtqia? (1-Sim, 0-Não): ");
+    scanf("%d", &novoCliente.lgbtqia);
+    limparBuffer();
+    printf("Qual é sua origem étnica? ");
+    scanf(" %[^\n]", novoCliente.corRaca);
+    printf("Informe sua data de nascimento (DD/MM/YYYY): ");
+    scanf("%s", novoCliente.dataNascimento);
+    limparBuffer();
+    printf("Informe sua nacionalidade: ");
+    scanf(" %[^\n]", novoCliente.nacionalidade);
+    printf("Informe sua naturalidade: ");
+    scanf(" %[^\n]", novoCliente.naturalidade);
+    printf("Informe seu RG: ");
+    scanf("%s", novoCliente.rg);
+    limparBuffer();
+    printf("Informe seu endereço: ");
+	scanf(" %[^\n]", novoCliente.endereco);
+    printf("Informe o número do seu telefone celular sem traços: ");
+	scanf("%s", novoCliente.celular);
+	limparBuffer();
+	printf("Usa Whatsapp? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.usaWhatsApp);
+	limparBuffer();
+	printf("Informe seu telefone alternativo (Se não possui digite 0): ");
+	scanf("%s", novoCliente.telefoneAlternativo);
+	limparBuffer();
+	printf("Informe seu e-mail pessoal: ");
+	scanf("%s", novoCliente.email);
+	printf("Informe sua escolaridade: ");
+	scanf(" %[^\n]", novoCliente.escolaridade);
+	printf("Informe sua profissão: ");
+	scanf(" %[^\n]", novoCliente.profissao);
+	printf("Informe sua situação empregacional: ");
+	scanf(" %[^\n]", novoCliente.situacaoEmprego);
+	printf("Informe seu estado civil: ");
+	scanf(" %[^\n]", novoCliente.estadoCivil);
+	printf("Tem filhos? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.temFilhos);
+	limparBuffer();
+	printf("Quantos filhos moram com você?");
+	scanf("%d", &novoCliente.filhosMorando);
+	limparBuffer();
+	printf("Total de membros da sua entidade familiar: ");
+	scanf("%d", &novoCliente.totalMembros);
+	limparBuffer();
+	printf("Recebe benefício assistencial ou rendimentos concedidos por programa oficial de transferência de renda (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.recebeBeneficio);
+	limparBuffer();
+	printf("Qual valor do benefício? ");
+	scanf("%f", &novoCliente.valorBeneficio);
+	limparBuffer();
+	printf("Qual o valor da sua renda mensal? ");
+	scanf("%f", &novoCliente.rendaMensal);
+	limparBuffer();
+	printf("Qual o valor da sua renda familiar? ");
+	scanf("%f", &novoCliente.rendaFamiliar);
+	limparBuffer();
+	printf("Tem gastos com tratamento médico por doença grave ou para o atendimento de necessidade especial com qualquer membro da entidade familiar (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.gastosTratamento);
+	limparBuffer();
+	printf("Qual o valor gasto em tratamentos? ");
+	scanf("%f", &novoCliente.valorGastosTratamento);
+	limparBuffer();
+	printf("Possui investimentos? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.possuiInvestimentos);
+	limparBuffer();
+	printf("Qual valor do investimento? ");
+	scanf("%f", &novoCliente.valorInvestimentos);
+	limparBuffer();
+	printf("Possui casa própria? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.possuiCasaPropria);
+	limparBuffer();
+	printf("Qual o valor? ");
+	scanf("%f", &novoCliente.valorCasaPropria);
+	limparBuffer();
+	printf("Possui apartamento? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.possuiApartamento);
+	limparBuffer();
+	printf("Qual o valor? ");
+	scanf("%f", &novoCliente.valorApartamento);
+	limparBuffer();
+	printf("Possui terreno? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.possuiTerreno);
+	limparBuffer();
+	printf("Qual o valor? ");
+	scanf("%f", &novoCliente.valorTerreno);
+	limparBuffer();
+	printf("Possui imóvel comercial? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.possuiImovelComercial);
+	limparBuffer();
+	printf("Qual o valor? ");
+	scanf("%f", &novoCliente.valorImovelComercial);
+	limparBuffer();
+	printf("Possui automóvel? (1-Sim, 0-Não): ");
+	scanf("%d", &novoCliente.possuiAutomovel);
+	limparBuffer();
+	printf("Qual o valor? ");
+	scanf("%f", &novoCliente.valorAutomovel);
+	limparBuffer();
+	printf("A demanda envolve violência doméstica (1-Sim, 0-Não)? ");
+	scanf("%d", &novoCliente.envolveViolenciaDomestica);
+	limparBuffer();
+	printf("Resumo do caso: ");
+	scanf(" %[^\n]", novoCliente.resumoCaso);
+	printf("Matéria relacionada à demanda solicitada (Cível/Família e Sucessões/Trabalhista/Penal/Previdenciário/Outro): ");
+	scanf(" %[^\n]", novoCliente.materiaRelacionada);
+
+    float salarioMinimo = 1320.0; 
+    float rendaTotal = novoCliente.rendaMensal + novoCliente.rendaFamiliar;
+    
+    if (rendaTotal <= 3 * salarioMinimo) {
+        novoCliente.enquadradoLei1060 = 1;
+    } else if (rendaTotal <= 4 * salarioMinimo) {
+        if (novoCliente.totalMembros > 5 || novoCliente.gastosTratamento || 
+            0) {
+            novoCliente.enquadradoLei1060 = 1;
+        } else {
+            novoCliente.enquadradoLei1060 = 0;
+        }
+    } else {
+        novoCliente.enquadradoLei1060 = 0;
+    }
+
+    clientes[numClientes++] = novoCliente;
+    qsort(clientes, numClientes, sizeof(Cliente), compararClientes);
+    salvarClientes();
+
+    printf("Triagem realizada com sucesso.\n");
+}
+
+void cadastroEstagiario() {
+    if (numEstagiarios >= MAX_ESTAGIARIOS) {
+        printf("Limite de estagiários atingido.\n");
+        return;
+    }
+
+    Estagiario novoEstagiario;
+    printf("Informe o nome: ");
+    scanf(" %[^\n]", novoEstagiario.nome);
+    printf("Informe o número de celular: ");
+    scanf("%s", novoEstagiario.celular);
+    printf("Informe o email: ");
+    scanf("%s", novoEstagiario.email);
+    printf("Informe o código do estagiário: ");
+    scanf("%d", &novoEstagiario.codigo);
+    limparBuffer(); 
+    printf("Informe o tipo do estagiário (plantonista (“P”), atendente (“A”) ou vareiro(a) (“V”)): ");
+    scanf("%c", &novoEstagiario.tipo); 
+
+    estagiarios[numEstagiarios++] = novoEstagiario;
+    qsort(estagiarios, numEstagiarios, sizeof(Estagiario), compararEstagiarios);
+    salvarEstagiarios();
+
+    printf("Estagiário cadastrado com sucesso.\n");
+}
+
+void atribuirEstagiario() {
+    if (numCasos >= MAX_CASOS) {
+        printf("Limite de casos atingido.\n");
+        return;
+    }
+
+    CasoAtribuido novoCaso;
+    printf("CPF do cliente: ");
+    scanf("%s", novoCaso.cpf);
+    printf("Código do atendimento: ");
+    scanf("%d", &novoCaso.codigoAtendimento);
+    printf("Código do estagiário: ");
+    scanf("%d", &novoCaso.codigoEstagiario);
+
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    strftime(novoCaso.dataAtribuicao, sizeof(novoCaso.dataAtribuicao), "%d/%m/%Y", tm);
+    strftime(novoCaso.horaAtribuicao, sizeof(novoCaso.horaAtribuicao), "%H:%M", tm);
+
+    casos[numCasos++] = novoCaso;
+    salvarCasos();
+
+    printf("Caso atribuído com sucesso.\n");
+}
+
+void agendarPlantaoAdvogados() {
+    if (numAgendamentos >= MAX_AGENDA) {
+        printf("Limite de agendamentos atingido.\n");
+        return;
+    }
+
+    Agenda novoAgendamento;
+    printf("Código do estagiário: ");
+    scanf("%d", &novoAgendamento.codigoEstagiario);
+    printf("OAB do advogado: ");
+    scanf("%s", novoAgendamento.oab);
+    printf("Data do agendamento (DD/MM/YYYY): ");
+    scanf("%s", novoAgendamento.dataAgendamento);
+    printf("Hora do agendamento (HH:MM): ");
+    scanf("%s", novoAgendamento.horaAgendamento);
+
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    strftime(novoAgendamento.dataInscricao, sizeof(novoAgendamento.dataInscricao), "%d/%m/%Y", tm);
+    strftime(novoAgendamento.horaInscricao, sizeof(novoAgendamento.horaInscricao), "%H:%M", tm);
+
+    printf("Área do direito: ");
+    scanf(" %[^\n]", novoAgendamento.areaDireito);
+    printf("Tipo de orientação: ");
+    scanf(" %[^\n]", novoAgendamento.tipoOrientacao);
+    printf("Prazo fatal (1-Sim, 0-Não): ");
+    scanf("%d", &novoAgendamento.prazoFatal);
+    printf("Observações: ");
+    scanf(" %[^\n]", novoAgendamento.observacoes);
+    printf("Número do processo: ");
+    scanf("%s", novoAgendamento.numeroProcesso);
+
+    strcpy(novoAgendamento.foiAtendido, "Não");
+
+    agendamentos[numAgendamentos++] = novoAgendamento;
+    salvarAgenda();
+
+    printf("Agendamento realizado com sucesso.\n");
+}
+
+void acompanharCaso() {
+    if (numControles >= MAX_CASOS) {
+        printf("Limite de controles atingido.\n");
+        return;
+    }
+
+    Controle novoControle;
+    printf("Número do processo: ");
+    scanf("%s", novoControle.numeroProcesso);
+    printf("Tema: ");
+    scanf(" %[^\n]", novoControle.tema);
+    printf("CPF do cliente: ");
+    scanf("%s", novoControle.cpf);
+    printf("Polo (Reclamante/Reclamado): ");
+    scanf("%s", novoControle.polo);
+    printf("Código do estagiário: ");
+    scanf("%d", &novoControle.codigoEstagiario);
+    printf("Data do próximo controle (DD/MM/YYYY): ");
+    scanf("%s", novoControle.dataControle);
+    printf("Próxima tarefa: ");
+    scanf(" %[^\n]", novoControle.proximaTarefa);
+    printf("Tem prazo em dobro (1-Sim, 0-Não): ");
+    scanf("%d", &novoControle.temPrazoDobro);
+    printf("Observação sobre o prazo: ");
+    scanf(" %[^\n]", novoControle.observacaoPrazo);
+    printf("Audiência: ");
+    scanf(" %[^\n]", novoControle.audiencia);
+    printf("Prazo simples (DD/MM/YYYY): ");
+    scanf("%s", novoControle.prazoSimples);
+    
+    controles[numControles++] = novoControle;
+    salvarControle();
+
+    printf("Caso acompanhado com sucesso.\n");
+}
+
+
+void buscarCliente() {
+    char cpfBusca[12];
+    printf("Digite o CPF do cliente: ");
+    scanf("%s", cpfBusca);
+
+    int index = buscarClientePorCPF(cpfBusca);
+    if (index != -1) {
+        Cliente cliente = clientes[index];
+        printf("Cliente encontrado:\n");
+        printf("Nome: %s\n", cliente.nome);
+        printf("Código de atendimento: %d\n", cliente.codigoAtendimento);
+    } else {
+        printf("Cliente não encontrado.\n");
+    }
+}
+
+void buscarEstagiario() {
+    int codigoBusca;
+
+    printf("Digite o código do estagiário a ser buscado: ");
+    scanf("%d", &codigoBusca);
+
+    for (int i = 0; i < numEstagiarios; i++) {
+        if (estagiarios[i].codigo == codigoBusca) {
+            printf("Estagiário encontrado:\n");
+            printf("Nome: %s\n", estagiarios[i].nome);
+            printf("Email: %s\n", estagiarios[i].email);
+            printf("Tipo: %c\n", estagiarios[i].tipo);
+            return;
+        }
+    }
+
+    printf("Estagiário não encontrado.\n");
+}
+
+
+void buscarAdvogado() {
+    Advogado advogado;
+    FILE *arquivo;
+    char oabBusca[10];
+
+    printf("Digite a OAB do advogado a ser buscado: ");
+    scanf("%s", oabBusca);
+
+    for (int i = 0; i < numAdvogados; i++) {
+        if (strcmp(advogados[i].oab, oabBusca) == 0) {
+            printf("Advogado encontrado:\n");
+            printf("Nome: %s\n", advogados[i].nome);
+            printf("Especialidade: %s\n", advogados[i].especialidade);
+            printf("Email: %s\n", advogados[i].email);
+            return;
+        }
+    }
+
+    printf("Advogado não encontrado.\n");
+}
+
+int main() {
+	 if (setlocale(LC_ALL, "pt_BR.UTF-8") == NULL) {
+        if (setlocale(LC_ALL, "Portuguese_Brazil.1252") == NULL) {
+            printf("Aviso: Não foi possível configurar a localização para português brasileiro.\n");
+            printf("Alguns caracteres especiais podem não ser exibidos corretamente.\n");
+        }
+    }
+
+    printf("Localização atual: %s\n", setlocale(LC_ALL, NULL));
+    carregarClientes();
+    carregarEstagiarios();
+    carregarAdvogados();
+    carregarCasos();
+    carregarAgenda();
+    carregarControle();
+
+  int opcao;
+do {
+    printf("\n--- Departamento Jurídico Acadêmico ---\n");
+    printf("1. Realizar Triagem\n");
+    printf("2. Atribuir Estagiário\n");
+    printf("3. Agendar Plantão de Advogados\n");
+    printf("4. Acompanhar Caso\n");
+    printf("5. Finalizar Atendimento\n");
+    printf("6. Buscar Cliente\n");
+    printf("7. Buscar Estagiário\n");
+    printf("8. Buscar Advogado\n");
+    printf("9. Cadastrar estagiário\n");  
+    printf("0. Sair\n");
+    printf("Escolha uma opção: ");
+    scanf("%d", &opcao);
+
+    switch(opcao) {
+        case 1:
+            realizarTriagem();
+            break;
+        case 2:
+            atribuirEstagiario();
+            break;
+        case 3:
+            agendarPlantaoAdvogados();
+            break;
+        case 4:
+            acompanharCaso();
+            break;
+        case 5:
+            finalizarAtendimento();
+            break;
+        case 6:
+            buscarCliente();
+            break;
+        case 7:
+            buscarEstagiario();
+            break;
+        case 8:
+            buscarAdvogado();
+            break;
+        case 9:
+            cadastroEstagiario();
+            break;
+        case 0:
+            printf("Encerrando o programa...\n");
+            break;
+        default:
+            printf("Opção inválida!\n");
+    }
+} while (opcao != 0);
+
+
+    salvarClientes();
+    salvarEstagiarios();
+    salvarAdvogados();
+    salvarCasos();
+    salvarAgenda();
+    salvarControle();
+
+    return 0;
+    
+}

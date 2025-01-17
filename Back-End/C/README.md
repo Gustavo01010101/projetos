@@ -1,0 +1,2 @@
+O projeto consiste em desenvolver uma aplicação em linguagem C para apoiar a gestão do Departamento Jurídico Acadêmico (DJA), que presta atendimento jurídico gratuito à população hipossuficiente do município de São Paulo.
+Este projeto abrange diversos aspectos da gestão de um departamento jurídico, desde o cadastro inicial até o encerramento do atendimento, com foco na eficiência e na organização dos dados.
